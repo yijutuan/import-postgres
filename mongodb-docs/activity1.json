@@ -1,0 +1,22 @@
+{
+    "_id": {
+        "$oid": "5d6ffacc88433c001c72a7d5"
+    },
+    "createdAt": {
+        "$numberDouble": "1567619788252.0"
+    },
+    "id": "wahtkbzpwnktcblyil",
+    "metadata": {
+        "emailAddress": "qa.team.user@liferay.cloud",
+        "emailAddressHash": "4a67e0d2660639d1f54e74ea1eaa0b8c",
+        "projectId": "qaprovisioning21567615453757",
+        "userId": "00unldzyulRJm6ZxM356",
+        "userInitials": "Q",
+        "userName": "QA Team User"
+    },
+    "projectId": "qaprovisioning21567615453757",
+    "projectUid": "vhvushqcdmkaplkhgy",
+    "readBy": [],
+    "type": "PROJECT_CREATED",
+    "userId": "_GLOBAL_"
+}

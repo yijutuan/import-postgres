@@ -1,0 +1,16 @@
+{
+  "name": "import-postgres",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "mongodb": "^3.6.3",
+    "pg": "^8.5.1"
+  }
+}
