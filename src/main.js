@@ -1,45 +1,53 @@
 const {Pool} = require('pg');
-
 const {MongoClient} = require('mongodb');
+const get = require('get-value');
 
-process.env.DATABASE_URL = 'host=localhost port=30678 dbname=postgres user=postgres password=postgres';
+const config = require('../config/config');
+
+const DATABASE_NAME = 'testimport';
+const ORIGINAL_COLUMNS = ['id', 'projectId'];
+const ADDED_COLUMNS = ['organizationId'];
 
 async function runImportPostgre() {
-  // try {
-  //   const client = await MongoClient.connect('mongodb://localhost:32701/liferay-cloud-api', {
-  //     ignoreUndefined: true,
-  //     useNewUrlParser: true,
-  //     useUnifiedTopology: true,
-  //   });
+  console.log('Connecting to Postgresql');
+  const pool = new Pool({...config.postgres});
+  console.log('Connected to Postgresql');
 
-  //   // having issues connecting...
+  const mongodbURL = createMongoURL(
+    config.mongodbURL,
+    config.mongodbUser,
+    config.mongodbPassword
+  );
+  console.log('Connecting to Mongodb');
 
-  //   const mongodb = client.db();
-  //   const activitiesCollection = await mongodb.collection('activities');
-  //   const cursor = await activitiesCollection.find({}).batchSize(10000);
-  //   let record;
-  //   console.log(await mongodb.collection('activities').count());
+  try {
+    const client = await MongoClient.connect(mongodbURL, {
+      ignoreUndefined: true,
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('Connected to Mongodb');
 
-  //   // while((record = await cursor.next())) {
-  //   //   console.log(record);
-  //   //   break;
-  //   // }
+    const mongodb = client.db();
+    const activitiesCollection = await mongodb.collection('activities');
+    const cursor = await activitiesCollection.find({}).batchSize(10000);
+    let record;
 
-  // } catch (error) {
-  //   console.error('Error connecting to mongodb', error);
-  // }
+    while((record = await cursor.next())) {
+      console.log(record);
+      await insert(pool, DATABASE_NAME, record);
+      break; // just to test one record at a time
+    }
 
-  const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'postgres',
-    password: 'postgres',
-    port: '30678',
-  });
+  } catch (error) {
+    console.error('Error connecting to mongodb', error);
+    return;
+  }
 
-  const record = getValuesFromFile('test.json');
+  return;
 
-  await insert(pool, record);
+  // const record = getValuesFromFile('test.json');
+  // await insert(pool, DATABASE_NAME, record);
 }
 
 function getValuesFromFile(file) {
@@ -52,41 +60,86 @@ function getValuesFromFile(file) {
  * @param {Pool} pool 
  * @param {Object} record 
  */
-async function insert(pool, record) {
-  const databaseName = 'testimport';
-  const columnsName = '(id, projectId, organizationId)';
-  const valuesList = createValuesList(record);
+async function insert(pool, databaseName, record) {
+  const columnsList = ORIGINAL_COLUMNS;
+
+  addOnAnalysisColumns(columnsList);
+  const valuesString = createValuesString(record, columnsList);
+  const columnsString = createColumnsString(columnsList);
 
   const query = 
-    `INSERT INTO ${databaseName} ${columnsName} `
-    + `VALUES (${valuesList})`;
+    `INSERT INTO ${databaseName} ${columnsString} `
+    + `VALUES (${valuesString})`;
+  console.log('query: ', query);
   try {
     const result = await pool.query(query);
     console.log(result);
   } catch (error) {
-    console.log(error);
+    console.log('Could not insert into postgres', error);
   }
   pool.end();
+}
+
+function addOnAnalysisColumns(columnsList) {
+  const newColumns = ADDED_COLUMNS;
+  columnsList.push(...newColumns);
+}
+
+function createColumnsString(columnsList) {
+  return '(' + columnsList.join(', ') + ')';
 }
 
 /**
  * Create list of values and add organizationId value
  * @param {object} record 
  */
-function createValuesList(record) {
-  const {id, projectId} = record;
-  const organizationId = getOrganizationId(projectId);
-  // don't forget to add quotes for string values
-  return `${id}, '${projectId}', '${organizationId}'`;
+function createValuesString(record, columnsList) {
+  const valuesList = columnsList.map(colName => {
+    if (colName === 'organizationId') {
+      return getOrganizationId(record);
+    }
+
+    return get(record, colName);
+  });
+
+
+  const valuesListHandleStrings = valuesList.map(value => {
+    if (typeof value === 'string') {
+      return `'${value}'`;
+    }
+    return value;
+  });
+
+  return valuesListHandleStrings.join(', ');
 }
 
 /**
  * For now, organizationId will just be the root project, but
  * we can change this to Salesforce value or another value later.
- * @param {string} projectId 
+ * @param {object} record
  */
-function getOrganizationId(projectId) {
+function getOrganizationId(record) {
+  const projectId = get(record, 'projectId');
   return projectId.split('-')[0];
+}
+
+/**
+ * Creates an URL to connect to a MongoDB.
+ * @param {!string} url MongoDB URL to which the user and the password should be
+   added, if any
+ * @param {string?} user The username to be added to the connection URL
+ * @param {string?} password The password to be added to the connection URL
+ * @returns {string} Returns MongoDB URL with schema, username and password,
+   if any
+ */
+function createMongoURL(url, user, password) {
+  if (user || password) {
+    url = url.replace(/^mongodb(?:\+srv)?:\/\//, (match) => {
+      return `${match}${user}:${password}@`;
+    });
+  }
+
+  return url;
 }
 
 module.exports = {

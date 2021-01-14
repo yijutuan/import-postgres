@@ -11,6 +11,7 @@
   "author": "",
   "license": "BSD-3-Clause",
   "dependencies": {
+    "get-value": "^3.0.1",
     "mongodb": "^3.6.3",
     "pg": "^8.5.1"
   }
