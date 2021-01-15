@@ -43,18 +43,12 @@ async function runImportPostgre() {
   );
 
   console.log('Connecting to Mongodb');
-  try {
-    const client = await MongoClient.connect(mongodbURL, {
-      ignoreUndefined: true,
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log('Connected to Mongodb');
-  } catch (error) {
-    console.error('Error when connecting to mongodb and updating', error);
-    pool.end();
-    return;
-  }
+  const client = await MongoClient.connect(mongodbURL, {
+    ignoreUndefined: true,
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
+  console.log('Connected to Mongodb');
 
   try {
     const mongodb = client.db();
@@ -62,6 +56,7 @@ async function runImportPostgre() {
     const cursor = await activitiesCollection.find({}).batchSize(10000);
     let record;
 
+    console.time('insertPostgres');
     let number = 0;
     while((record = await cursor.next())) {
       console.log(record);
@@ -71,6 +66,7 @@ async function runImportPostgre() {
         break;
       }
     }
+    console.timeEnd('insertPostgres');
 
   } catch (error) {
     console.error('Error when getting value from mongodb and updating to postgres', error);
